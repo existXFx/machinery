@@ -21,7 +21,7 @@ import (
 	backendsiface "github.com/RichardKnop/machinery/v1/backends/iface"
 	brokersiface "github.com/RichardKnop/machinery/v1/brokers/iface"
 	lockiface "github.com/RichardKnop/machinery/v1/locks/iface"
-	opentracing "github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/otel"
 )
 
 // Server is the main Machinery object and stores all configuration
@@ -179,11 +179,11 @@ func (server *Server) GetRegisteredTask(name string) (interface{}, error) {
 
 // SendTaskWithContext will inject the trace context in the signature headers before publishing it
 func (server *Server) SendTaskWithContext(ctx context.Context, signature *tasks.Signature) (*result.AsyncResult, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "SendTask", tracing.ProducerOption(), tracing.MachineryTag)
-	defer span.Finish()
+	ctx, span := otel.Tracer("").Start(ctx, "SendTask")
+	defer span.End()
 
 	// tag the span with some info about the signature
-	signature.Headers = tracing.HeadersWithSpan(signature.Headers, span)
+	signature.Headers = tracing.HeadersWithContext(signature.Headers, ctx)
 
 	// Make sure result backend is defined
 	if server.backend == nil {
@@ -219,10 +219,10 @@ func (server *Server) SendTask(signature *tasks.Signature) (*result.AsyncResult,
 
 // SendChainWithContext will inject the trace context in all the signature headers before publishing it
 func (server *Server) SendChainWithContext(ctx context.Context, chain *tasks.Chain) (*result.ChainAsyncResult, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "SendChain", tracing.ProducerOption(), tracing.MachineryTag, tracing.WorkflowChainTag)
-	defer span.Finish()
+	ctx, span := otel.Tracer("").Start(ctx, "SendChain")
+	defer span.End()
 
-	tracing.AnnotateSpanWithChainInfo(span, chain)
+	tracing.AnnotateSpanWithChainInfo(ctx, chain)
 
 	return server.SendChain(chain)
 }
@@ -239,10 +239,10 @@ func (server *Server) SendChain(chain *tasks.Chain) (*result.ChainAsyncResult, e
 
 // SendGroupWithContext will inject the trace context in all the signature headers before publishing it
 func (server *Server) SendGroupWithContext(ctx context.Context, group *tasks.Group, sendConcurrency int) ([]*result.AsyncResult, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "SendGroup", tracing.ProducerOption(), tracing.MachineryTag, tracing.WorkflowGroupTag)
-	defer span.Finish()
+	ctx, span := otel.Tracer("").Start(ctx, "SendGroup")
+	defer span.End()
 
-	tracing.AnnotateSpanWithGroupInfo(span, group, sendConcurrency)
+	tracing.AnnotateSpanWithGroupInfo(ctx, group, sendConcurrency)
 
 	// Make sure result backend is defined
 	if server.backend == nil {
@@ -320,10 +320,10 @@ func (server *Server) SendGroup(group *tasks.Group, sendConcurrency int) ([]*res
 
 // SendChordWithContext will inject the trace context in all the signature headers before publishing it
 func (server *Server) SendChordWithContext(ctx context.Context, chord *tasks.Chord, sendConcurrency int) (*result.ChordAsyncResult, error) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "SendChord", tracing.ProducerOption(), tracing.MachineryTag, tracing.WorkflowChordTag)
-	defer span.Finish()
+	ctx, span := otel.Tracer("").Start(ctx, "SendChord")
+	defer span.End()
 
-	tracing.AnnotateSpanWithChordInfo(span, chord, sendConcurrency)
+	tracing.AnnotateSpanWithChordInfo(ctx, chord, sendConcurrency)
 
 	_, err := server.SendGroupWithContext(ctx, chord.Group, sendConcurrency)
 	if err != nil {

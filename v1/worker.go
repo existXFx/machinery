@@ -10,8 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
-	
 	"github.com/RichardKnop/machinery/v1/backends/amqp"
 	"github.com/RichardKnop/machinery/v1/brokers/errs"
 	"github.com/RichardKnop/machinery/v1/log"
@@ -159,9 +157,9 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 	// try to extract trace span from headers and add it to the function context
 	// so it can be used inside the function if it has context.Context as the first
 	// argument. Start a new span if it isn't found.
-	taskSpan := tracing.StartSpanFromHeaders(signature.Headers, signature.Name)
-	tracing.AnnotateSpanWithSignatureInfo(taskSpan, signature)
-	task.Context = opentracing.ContextWithSpan(task.Context, taskSpan)
+	ctx, _ := tracing.StartSpanFromHeaders(signature.Headers, signature.Name)
+	tracing.AnnotateSpanWithSignatureInfo(ctx, signature)
+	task.Context = ctx
 
 	// Update task state to STARTED
 	if err = worker.server.GetBackend().SetStateStarted(signature); err != nil {
